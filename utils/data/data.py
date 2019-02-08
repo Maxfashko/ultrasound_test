@@ -27,7 +27,7 @@ def _are_inconsistent(mask1, mask2):
 
 
 def _filter_inconsistent(imgs, masks):
-    hists = np.array(map(_compute_img_hist, imgs))
+    hists = np.array(list(map(_compute_img_hist, imgs)))
     dists = spdist.squareform(spdist.pdist(hists, metric='cosine'))
 
     # + eye because image will be similar to itself. We dont want to include those.
