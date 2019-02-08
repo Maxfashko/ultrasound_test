@@ -32,73 +32,73 @@ def transform(img, mask, augment=True):
 def train(resume=False):
     print('Loading data...')
     X_train, X_val, y_train, y_val = DataManager.load_train_val_data("cleaned")
+    n_fold = 0
 
-    ## concat all data for kfold
-    #X_train = np.concatenate((X_train, X_val), axis=0)
-    #y_train = np.concatenate((y_train, y_val), axis=0)
-#
-    #kf = KFold(n_splits=N_FOLDS)
-#
-    #for train_index, test_index in kf.split(X):
-    #    X_train, X_test = X_train[train_index], X_train[test_index]
-    #    y_train, y_test = y_train[train_index], y_train[test_index]
+    # concat all data for kfold
+    X = np.concatenate((X_train, X_val), axis=0)
+    y = np.concatenate((y_train, y_val), axis=0)
 
-    #N_FOLDS
-    print('Creating and compiling model...')
-    model = build_model()
-    #if resume:
-    #    model.load_weights('./results/net.hdf5')
+    kf = KFold(n_splits=N_FOLDS)
 
+    for train_index, test_index in kf.split(X):
+        n_fold += 1
+        X_train, X_val = X[train_index], X[test_index]
+        y_train, y_val = y[train_index], y[test_index]
 
-    print('Training on model')
-    #model.summary()
-    batch_size = 64
-    epochs = 200
+        print('Creating and compiling model...')
+        model = build_model()
 
-    tb = TensorBoard(
-        log_dir                = f'./logs/{run_id}',
-        histogram_freq         = 0,
-        write_graph            = True,
-        write_grads            = False,
-        write_images           = False,
-        embeddings_freq        = 0,
-        embeddings_layer_names = None,
-        embeddings_metadata    = None
-    )
+        weights_name = f'net_fold_{n_fold}.hdf5'
 
-    clr_triangular = CyclicLR(mode='triangular', base_lr=1e-7, max_lr=1e-3, step_size=epochs)
-    early_s = EarlyStopping(monitor='val_main_output_dice', patience=55, verbose=1)
+        print('Training on model')
+        #model.summary()
+        batch_size = 64
+        epochs = 200
 
-    # проблемы с сохранением лучших весов по метрике val_dice в кастомном колбэке
-    model_checkpoint = MyModelCheck('./results/net.hdf5',  mode='max', monitor='val_loss', save_best_only=True, save_weights_only=False)
+        tb = TensorBoard(
+            log_dir                = f'./logs/{run_id}',
+            histogram_freq         = 0,
+            write_graph            = False,
+            write_grads            = False,
+            write_images           = False,
+            embeddings_freq        = 0,
+            embeddings_layer_names = None,
+            embeddings_metadata    = None
+        )
 
-    # костыль для TensorBoard, без него не показывается lr
-    reduce_lr = ReduceLROnPlateau(monitor='val_main_output_dice', factor=0.2, patience=10, min_lr=1e-6)
+        clr_triangular = CyclicLR(mode='triangular', base_lr=1e-7, max_lr=1e-3, step_size=epochs)
+        early_s = EarlyStopping(monitor='val_main_output_dice', patience=55, verbose=1)
 
-    train_generator = DataGenerator(
-        list_IDs=X_train.shape[0],
-        X=X_train,
-        y=y_train,
-        batch_size=batch_size,
-        transform=lambda x, y: transform(x, y, augment=True)
-    )
+        # проблемы с сохранением лучших весов по метрике val_dice в кастомном колбэке
+        model_checkpoint = MyModelCheck(f'./results/{weights_name}',  mode='max', monitor='val_loss', save_best_only=True, save_weights_only=False)
 
-    # TTA for validation = result bellow
-    val_generator = DataGenerator(
-        list_IDs=X_val.shape[0],
-        X=X_val,
-        y=y_val,
-        batch_size=batch_size,
-        transform=lambda x, y: transform(x, y, augment=True)
-    )
+        # костыль для TensorBoard, без него не показывается lr
+        reduce_lr = ReduceLROnPlateau(monitor='val_main_output_dice', factor=0.2, patience=10, min_lr=1e-6)
 
-    model.fit_generator(
-        generator=train_generator,
-        validation_data=val_generator,
-        epochs=epochs,
-        verbose=2,
-        callbacks=[model_checkpoint, tb, clr_triangular, reduce_lr, early_s]
-    )
+        train_generator = DataGenerator(
+            list_IDs=X_train.shape[0],
+            X=X_train,
+            y=y_train,
+            batch_size=batch_size,
+            transform=lambda x, y: transform(x, y, augment=True)
+        )
+
+        # TTA for validation = result bellow
+        val_generator = DataGenerator(
+            list_IDs=X_val.shape[0],
+            X=X_val,
+            y=y_val,
+            batch_size=batch_size,
+            transform=lambda x, y: transform(x, y, augment=True)
+        )
+
+        model.fit_generator(
+            generator=train_generator,
+            validation_data=val_generator,
+            epochs=epochs,
+            verbose=2,
+            callbacks=[model_checkpoint, tb, clr_triangular, reduce_lr, early_s]
+        )
 
 
 if __name__ == '__main__':
