@@ -1,4 +1,5 @@
 keras
+numpy
 scikit-image
 opencv-python
 albumentations

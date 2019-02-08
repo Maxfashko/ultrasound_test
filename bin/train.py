@@ -31,7 +31,10 @@ def transform(img, mask, augment=True):
 def train(resume=False):
     print('Loading data...')
     X_train, X_val, y_train, y_val = DataManager.load_train_val_data("cleaned")
+
     n_fold = 0
+    epochs = 150
+    batch_size = 80
 
     # concat all data for kfold
     X = np.concatenate((X_train, X_val), axis=0)
@@ -39,9 +42,21 @@ def train(resume=False):
 
     kf = KFold(n_splits=N_FOLDS)
 
+    run_id = str(datetime.now())
+
+    tb = TensorBoard(
+        log_dir                = f'./logs/{run_id}',
+        histogram_freq         = 0,
+        write_graph            = False,
+        write_grads            = False,
+        write_images           = False,
+        embeddings_freq        = 0,
+        embeddings_layer_names = None,
+        embeddings_metadata    = None
+    )
+
     for train_index, test_index in kf.split(X):
 
-        run_id = str(datetime.now())
         n_fold += 1
 
         X_train, X_val = X[train_index], X[test_index]
@@ -54,22 +69,9 @@ def train(resume=False):
 
         print('Training on model')
         #model.summary()
-        batch_size = 64
-        epochs = 100
 
-        tb = TensorBoard(
-            log_dir                = f'./logs/{run_id}',
-            histogram_freq         = 0,
-            write_graph            = False,
-            write_grads            = False,
-            write_images           = False,
-            embeddings_freq        = 0,
-            embeddings_layer_names = None,
-            embeddings_metadata    = None
-        )
-
-        clr_triangular = CyclicLR(mode='triangular', base_lr=1e-7, max_lr=1e-3, step_size=epochs)
-        #early_s = EarlyStopping(monitor='val_loss', patience=100, verbose=1)
+        clr_triangular = CyclicLR(mode='triangular', base_lr=1e-7, max_lr=1e-3, step_size=epochs*2)
+        #early_s = EarlyStopping(monitor='val_loss', patience=50, verbose=1)
 
         # проблемы с сохранением лучших весов по метрике val_dice в кастомном колбэке
         model_checkpoint = MyModelCheck(f'./results/{weights_name}',  mode='max', monitor='val_loss', save_best_only=True, save_weights_only=False)

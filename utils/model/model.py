@@ -111,7 +111,7 @@ def build_model(optimizer=None):
     model = Model(inputs=inputs, outputs=[conv10, aux])
     model.compile(optimizer=optimizer,
                   loss={'main_output': dice_loss, 'aux_output': 'binary_crossentropy'},
-                  metrics={'main_output': dice, 'aux_output': 'acc'},
-                  loss_weights={'main_output': 1, 'aux_output': 0.5})
+                  metrics={'main_output': dice, 'aux_output': 'acc'})
+                  #loss_weights={'main_output': 1, 'aux_output': 0.5}
 
     return model
