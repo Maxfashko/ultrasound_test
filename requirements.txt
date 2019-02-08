@@ -1,0 +1,5 @@
+keras
+scikit-image
+opencv-python
+albumentations
+tensorflow-gpu
