@@ -18,14 +18,12 @@ from utils.image_utils import preprocess, norm, calc_mean_std
 def post_process_mask(prob_mask):
     prob_mask = prob_mask.astype('float32')
     prob_mask = cv2.resize(prob_mask, (IMG_ORIG_COLS, IMG_ORIG_ROWS),
-                           interpolation=cv2.INTER_LINEAR)
+                           interpolation=cv2.INTER_CUBIC)
 
     prob_mask = cv2.GaussianBlur(prob_mask, (1, 1), 0)
 
-    # median ?
     median = cv2.medianBlur(prob_mask, 5)
 
-    #best weights 160*160 = 0.2
     prob_mask = cv2.threshold(prob_mask, 0.4, 1, cv2.THRESH_BINARY)[1]
     return prob_mask
 
@@ -51,11 +49,10 @@ def generate_submission():
     imgs_test = DataManager.load_test_data()
     total = imgs_test.shape[0]
     imgs = np.ndarray((total, 1, IMG_TARGET_ROWS, IMG_TARGET_COLS), dtype=np.uint8)
-    i = 0
-    for img in imgs_test:
+
+    for idx, img in enumerate(imgs_test):
         img = img.reshape(IMG_ORIG_ROWS, IMG_ORIG_COLS)
-        imgs[i] = preprocess(img)
-        i += 1
+        imgs[idx] = preprocess(img)
 
     model = build_model()
 
@@ -88,7 +85,7 @@ def generate_submission():
 
         # postprocess https://github.com/EdwardTyantov/ultrasound-nerve-segmentation
         new_prob = (has_masks[i, 0] + min(1, np.sum(masks[i, 0])/1000.0 )* 4 / 3)/2
-        if np.sum(masks[i, 0]) > 0 and new_prob < 0.3:
+        if np.sum(masks[i, 0]) > 0 and new_prob < 0.4:
             masks[i, 0] = np.zeros((IMG_TARGET_ROWS, IMG_TARGET_COLS))
 
 
