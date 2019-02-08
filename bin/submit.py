@@ -8,7 +8,8 @@ from utils.params import (
     IMG_TARGET_ROWS,
     IMG_TARGET_COLS,
     IMG_ORIG_ROWS,
-    IMG_ORIG_COLS)
+    IMG_ORIG_COLS,
+    N_FOLDS)
 from utils.data.data import DataManager
 from utils.model.model import build_model
 from utils.image_utils import preprocess, norm, calc_mean_std
@@ -56,21 +57,27 @@ def generate_submission():
         imgs[i] = preprocess(img)
         i += 1
 
-    print('Loading network')
     model = build_model()
-    model.load_weights('./results/net.hdf5')
 
-    print('Generating predictions')
-    masks1, has_masks1 = model.predict(imgs, verbose=1)
+    masks_acc = np.ndarray((total, 1, IMG_TARGET_ROWS, IMG_TARGET_COLS), dtype=np.float32)
+    has_masks_acc = np.ndarray((total, 1), dtype=np.float32)
 
-    model.load_weights('./results/net2.hdf5')
+    # predict using kfold
+    for i in range(1, N_FOLDS+1):
+        weights_name = f'net_fold_{i}.hdf5'
 
-    masks2, has_masks2 = model.predict(imgs, verbose=1)
+        print(f'Loading network for {weights_name}')
 
-    masks = (masks1 + masks2) / 2
-    has_masks = (has_masks1 + has_masks2) / 2
+        model.load_weights(f'./results/{weights_name}')
 
-    #masks = np.mean(masks1+masks2)
+        print('Generating predictions')
+        masks, has_masks = model.predict(imgs, verbose=1)
+        masks_acc += masks
+        has_masks_acc += has_masks
+
+
+    masks = masks_acc / N_FOLDS
+    has_masks = has_masks_acc / 2
 
     ids = []
     rles = []

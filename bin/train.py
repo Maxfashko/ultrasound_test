@@ -17,7 +17,6 @@ from utils.image_utils import preprocess, norm, calc_mean_std
 
 
 seed(1)
-run_id = str(datetime.now())
 augmenter = Augmentation()
 
 
@@ -41,7 +40,10 @@ def train(resume=False):
     kf = KFold(n_splits=N_FOLDS)
 
     for train_index, test_index in kf.split(X):
+
+        run_id = str(datetime.now())
         n_fold += 1
+
         X_train, X_val = X[train_index], X[test_index]
         y_train, y_val = y[train_index], y[test_index]
 
@@ -53,7 +55,7 @@ def train(resume=False):
         print('Training on model')
         #model.summary()
         batch_size = 64
-        epochs = 200
+        epochs = 100
 
         tb = TensorBoard(
             log_dir                = f'./logs/{run_id}',
@@ -67,13 +69,13 @@ def train(resume=False):
         )
 
         clr_triangular = CyclicLR(mode='triangular', base_lr=1e-7, max_lr=1e-3, step_size=epochs)
-        early_s = EarlyStopping(monitor='val_main_output_dice', patience=55, verbose=1)
+        #early_s = EarlyStopping(monitor='val_loss', patience=100, verbose=1)
 
         # проблемы с сохранением лучших весов по метрике val_dice в кастомном колбэке
         model_checkpoint = MyModelCheck(f'./results/{weights_name}',  mode='max', monitor='val_loss', save_best_only=True, save_weights_only=False)
 
         # костыль для TensorBoard, без него не показывается lr
-        reduce_lr = ReduceLROnPlateau(monitor='val_main_output_dice', factor=0.2, patience=10, min_lr=1e-6)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=100, min_lr=1e-6)
 
         train_generator = DataGenerator(
             list_IDs=X_train.shape[0],
@@ -83,7 +85,6 @@ def train(resume=False):
             transform=lambda x, y: transform(x, y, augment=True)
         )
 
-        # TTA for validation = result bellow
         val_generator = DataGenerator(
             list_IDs=X_val.shape[0],
             X=X_val,
@@ -97,7 +98,7 @@ def train(resume=False):
             validation_data=val_generator,
             epochs=epochs,
             verbose=2,
-            callbacks=[model_checkpoint, tb, clr_triangular, reduce_lr, early_s]
+            callbacks=[model_checkpoint, tb, clr_triangular, reduce_lr]
         )
 
 
