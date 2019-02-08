@@ -22,7 +22,7 @@ def post_process_mask(prob_mask):
 
     prob_mask = cv2.GaussianBlur(prob_mask, (1, 1), 0)
 
-    median = cv2.medianBlur(prob_mask, 5)
+    prob_mask = cv2.medianBlur(prob_mask, 5)
 
     prob_mask = cv2.threshold(prob_mask, 0.4, 1, cv2.THRESH_BINARY)[1]
     return prob_mask
